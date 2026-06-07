@@ -295,9 +295,12 @@ func (mm *MapMatcher) reconstructRoute(from, to Candidate) []CandidatePoint {
 	distA := to.EdgeLength * to.Proj.T
 	distB := to.EdgeLength * (1.0 - to.Proj.T)
 
+	straightLine := graph.DistanceBetweenGpsPoints(from.Proj.Lat, from.Proj.Lon, to.Proj.Lat, to.Proj.Lon)
+	maxDistance := straightLine + 5.0*mm.beta
+
 	// Try both routes and pick the shorter one
-	distToA, pathToA := mm.graph.Dijkstra(startID, to.NodeA.ID, userGraph)
-	distToB, pathToB := mm.graph.Dijkstra(startID, to.NodeB.ID, userGraph)
+	distToA, pathToA := mm.graph.Dijkstra(startID, to.NodeA.ID, maxDistance, userGraph)
+	distToB, pathToB := mm.graph.Dijkstra(startID, to.NodeB.ID, maxDistance, userGraph)
 
 	var finalPath []int64
 	var _ *graph.Node
