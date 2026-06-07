@@ -1,23 +1,66 @@
-import { MapContainer, Marker, TileLayer, Popup} from "react-leaflet";
+import { useState } from "react";
+import {
+  MapContainer,
+  Marker,
+  TileLayer,
+  Popup,
+  useMapEvents
+} from "react-leaflet";
 
-const Map = () => {
-    return (
-       <MapContainer center={[51.505, -0.09]}
-  zoom={13}
-  scrollWheelZoom={false}
-  style={{ height: "100vh", width: "100%" }}>
-  <TileLayer
-    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-  />
-  <Marker position={[51.505, -0.09]}>
-    <Popup>
-      A pretty CSS3 popup. <br /> Easily customizable.
-    </Popup>
-  </Marker>
-</MapContainer>
-    );
+function MapEvents({ addMarker }) {
+  useMapEvents({
+    click(e) {
+      addMarker(e.latlng);
+    }
+  });
+
+  return null;
 }
 
+export default function Map() {
+  const [markers, setMarkers] = useState([]);
 
-export default Map;
+  const addMarker = (latlng) => {
+    setMarkers((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        position: latlng
+      }
+    ]);
+  };
+
+  const deleteMarker = (id) => {
+    setMarkers((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  return (
+    <MapContainer
+      center={[51.505, -0.09]}
+      zoom={13}
+      scrollWheelZoom={false}
+      style={{ height: "100vh", width: "100%" }}
+    >
+      <MapEvents addMarker={addMarker} />
+
+      <TileLayer
+        attribution='&copy; OpenStreetMap contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {markers.map((marker) => (
+        <Marker
+          key={marker.id}
+          position={marker.position}
+          eventHandlers={{
+            click: () => deleteMarker(marker.id)
+          }}
+        >
+          <Popup>
+            Click marker to delete
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
