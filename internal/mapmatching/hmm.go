@@ -48,7 +48,7 @@ func NewMapMatcher(g *graph.Graph, rt *rtree.RTreeGN[float64, *rtree2.RoadSegmen
 		graph:             g,
 		rtree:             rt,
 		maxRadius:         50.0,
-		standardDeviation: 4.07,
+		standardDeviation: 12,
 		beta:              40,
 	}
 }
@@ -440,7 +440,9 @@ func (mm *MapMatcher) CreateUserGraph(candidate Candidate) *graph.UserGraph {
 	}
 
 	distToB := candidate.EdgeLength * (1.0 - candidate.Proj.T)
+	distToA := candidate.EdgeLength * candidate.Proj.T
 	projNode.InsertEdgeWithDistance(candidate.NodeB, distToB)
+	projNode.InsertEdgeWithDistance(candidate.NodeA, distToA)
 
 	userNodes[-1] = projNode
 	return graph.NewUserGraph(userNodes)
