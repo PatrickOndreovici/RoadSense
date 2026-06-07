@@ -87,6 +87,9 @@ function CalculateRouteButton({ markers }) {
   const calculateRoute = async () => {
     if (markers.length < 2) {
       setError("Add at least 2 markers to calculate a route.");
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
       return;
     }
 
@@ -111,6 +114,9 @@ function CalculateRouteButton({ markers }) {
       // TODO: handle route response once backend is ready
     } catch (err) {
       setError(err.message);
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
     } finally {
       setLoading(false);
     }
