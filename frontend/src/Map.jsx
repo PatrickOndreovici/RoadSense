@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import L from "leaflet";
 import {
   MapContainer,
   Marker,
   TileLayer,
   Popup,
+  Polyline,
   useMapEvents,
   useMap,
 } from "react-leaflet";
@@ -14,12 +16,20 @@ function MapEvents({ addMarker }) {
       addMarker(e.latlng);
     },
   });
-
   return null;
 }
 
 function MarkerList({ markers }) {
   const map = useMap();
+  const containerRef = useRef(null);
+
+
+  useEffect(() => {
+    if (containerRef.current) {
+      L.DomEvent.disableClickPropagation(containerRef.current);
+    }
+    return () => clearTimeout(containerRef.current);
+  }, []);
 
   const focusMarker = (position) => {
     map.flyTo(position, 16, { duration: 1 });
@@ -27,6 +37,7 @@ function MarkerList({ markers }) {
 
   return (
     <div
+        ref={containerRef}
       style={{
         position: "absolute",
         top: 10,
@@ -80,16 +91,28 @@ function MarkerList({ markers }) {
   );
 }
 
-function CalculateRouteButton({ markers }) {
+function CalculateRouteButton({ markers, onRouteCalculated, onClearAll }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const errorTimerRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      L.DomEvent.disableClickPropagation(containerRef.current);
+    }
+    return () => clearTimeout(errorTimerRef.current);
+  }, []);
+
+  const showError = (msg) => {
+    clearTimeout(errorTimerRef.current);
+    setError(msg);
+    errorTimerRef.current = setTimeout(() => setError(null), 3000);
+  };
 
   const calculateRoute = async () => {
     if (markers.length < 2) {
-      setError("Add at least 2 markers to calculate a route.");
-      setTimeout(() => {
-        setError(null);
-      }, 3000);
+      showError("Add at least 2 markers to calculate a route.");
       return;
     }
 
@@ -110,13 +133,16 @@ function CalculateRouteButton({ markers }) {
 
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
-      // const data = await response.json();
-      // TODO: handle route response once backend is ready
+      const data = await response.json();
+      console.log("Route response:", data);
+
+      const routeCoords = data
+        .filter((point) => point.MatchedRoadPoint !== null)
+        .map((point) => [point.MatchedRoadPoint.Lat, point.MatchedRoadPoint.Lng]);
+
+      onRouteCalculated(routeCoords);
     } catch (err) {
-      setError(err.message);
-      setTimeout(() => {
-        setError(null);
-      }, 3000);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -124,6 +150,7 @@ function CalculateRouteButton({ markers }) {
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: "absolute",
         bottom: 24,
@@ -152,37 +179,64 @@ function CalculateRouteButton({ markers }) {
         </div>
       )}
 
-      <button
-        onClick={calculateRoute}
-        disabled={loading}
-        style={{
-          padding: "12px 20px",
-          background: loading ? "#7f8c8d" : "#2c3e50",
-          color: "white",
-          border: "none",
-          borderRadius: 8,
-          fontSize: 15,
-          fontWeight: 600,
-          cursor: loading ? "not-allowed" : "pointer",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-          transition: "background 0.2s",
-          whiteSpace: "nowrap",
-        }}
-        onMouseEnter={(e) => {
-          if (!loading) e.currentTarget.style.background = "#1a252f";
-        }}
-        onMouseLeave={(e) => {
-          if (!loading) e.currentTarget.style.background = "#2c3e50";
-        }}
-      >
-        {loading ? "Calculating…" : "Calculate Route"}
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={onClearAll}
+          style={{
+            padding: "12px 20px",
+            background: "#7f8c8d",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+            whiteSpace: "nowrap",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#636e72";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#7f8c8d";
+          }}
+        >
+          Clear All
+        </button>
+
+        <button
+          onClick={calculateRoute}
+          disabled={loading}
+          style={{
+            padding: "12px 20px",
+            background: loading ? "#7f8c8d" : "#2c3e50",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+            transition: "background 0.2s",
+            whiteSpace: "nowrap",
+          }}
+          onMouseEnter={(e) => {
+            if (!loading) e.currentTarget.style.background = "#1a252f";
+          }}
+          onMouseLeave={(e) => {
+            if (!loading) e.currentTarget.style.background = "#2c3e50";
+          }}
+        >
+          {loading ? "Calculating…" : "Calculate Route"}
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function Map() {
   const [markers, setMarkers] = useState([]);
+  const [routeCoords, setRouteCoords] = useState([]);
 
   const addMarker = (latlng) => {
     setMarkers((prev) => [
@@ -195,11 +249,16 @@ export default function Map() {
     setMarkers((prev) => prev.filter((m) => m.id !== id));
   };
 
+  const clearAll = () => {
+    setMarkers([]);
+    setRouteCoords([]);
+  };
+
   return (
     <MapContainer
-      center={[51.505, -0.09]}
+      center={[44.4268, 26.1025]}
       zoom={13}
-      scrollWheelZoom={false}
+      scrollWheelZoom={true}
       style={{ height: "100vh", width: "100%" }}
     >
       <MapEvents addMarker={addMarker} />
@@ -210,7 +269,15 @@ export default function Map() {
       />
 
       <MarkerList markers={markers} />
-      <CalculateRouteButton markers={markers} />
+      <CalculateRouteButton
+        markers={markers}
+        onRouteCalculated={setRouteCoords}
+        onClearAll={clearAll}
+      />
+
+      {routeCoords.length > 0 && (
+        <Polyline positions={routeCoords} color="#e74c3c" weight={4} opacity={0.8} />
+      )}
 
       {markers.map((marker) => (
         <Marker
