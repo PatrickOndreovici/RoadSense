@@ -82,7 +82,7 @@ func (pq *PriorityQueue) Pop() interface{} {
 
 func (g *Graph) Dijkstra(startID, endID int64, userGraph *UserGraph) (float64, []int64) {
 	// If start or end missing
-	if g.Nodes[startID] == nil || g.Nodes[endID] == nil {
+	if (startID >= 0 && g.Nodes[startID] == nil) || (endID >= 0 && g.Nodes[endID] == nil) {
 		return math.Inf(1), nil
 	}
 
